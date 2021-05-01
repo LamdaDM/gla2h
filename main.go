@@ -70,21 +70,26 @@ func GenerateConfig(passes uint32, memory uint32, threads uint8) argon2.Config {
 // and ProduceHash()
 func run(memtest uint32, stdin []byte, timer bool){
 	var startT time.Time
+	var kill bool
 	for i := 3; i <= 70; i++ {
-		dummy := stdin
-		sinCtx, _ := context.WithTimeout(context.Background(), 1000*time.Millisecond)
-		fmt.Printf("passes-%d mem-%d: ", i, memtest)
-		startT = time.Now()
-		if hashResult := SafeProduceHash(
-			sinCtx,
-			GenerateConfig(uint32(i), memtest, 12),
-			dummy,
-			timer,
-			startT,
-		); hashResult.hashErr != nil {
-			if _, printErr := fmt.Fprint(os.Stderr, hashResult.hashErr);
-				printErr != nil { panic(printErr) }
-		} else { fmt.Println(string(hashResult.hashed)) }
+		func() {
+			dummy := stdin
+			sinCtx, cancel := context.WithTimeout(context.Background(), 750*time.Millisecond)
+			defer cancel()
+			fmt.Printf("passes-%d mem-%d: ", i, memtest)
+			startT = time.Now()
+			if hashResult := SafeProduceHash(
+				sinCtx,
+				GenerateConfig(uint32(i), memtest, 12),
+				dummy,
+				timer,
+				startT,
+			); hashResult.hashErr != nil {
+				kill = true
+				return
+			}
+		}()
+		if kill { break }
 	}
 }
 
@@ -114,7 +119,7 @@ func main() {
 	if os.Args[2] == "timed" { timer = true }
 	if os.Args[3] == "benchmark" { benchmark(in, timer)
 	} else {
-		MEM_COST, memParseErr := strconv.ParseUint(os.Args[4], 10, 32);
+		MEM_COST, memParseErr := strconv.ParseUint(os.Args[4], 10, 32)
 			if memParseErr != nil {
 				fmt.Fprint(os.Stderr, memParseErr)
 				panic(memParseErr)
