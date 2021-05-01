@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/matthewhartstonge/argon2"
 	"os"
@@ -8,17 +9,45 @@ import (
 	"time"
 )
 
+type HashRes struct {
+	hashed []byte
+	hashErr error
+}
+
 // ExecTime prints time difference between startTimer and the end of the parent function's execution.
 func ExecTime(startTimer time.Time) { fmt.Println(time.Since(startTimer))}
 
 // ProduceHash calls argon2.HashEncoded() on the config and input passed.
-func ProduceHash(conf argon2.Config, stdin []byte, timer bool, start time.Time) ([]byte, error) {
+func ProduceHash(conf argon2.Config, stdin []byte, timer bool, start time.Time) HashRes {
 	if timer { defer ExecTime(start) }
 
 	if out, hashErr := conf.HashEncoded(stdin);
 		hashErr != nil {
-			return nil, hashErr
-		} else { return out, nil }
+			return HashRes{nil, hashErr}
+		} else { return HashRes{out, nil} }
+}
+
+func SafeProduceHash(
+	ctx context.Context,
+	conf argon2.Config,
+	stdin []byte,
+	timer bool,
+	start time.Time,
+	) HashRes {
+	res := make(chan HashRes)
+	go func() {
+		res <- ProduceHash(conf, stdin, timer, start)
+		close(res)
+	}()
+
+	for{
+		select {
+			case dst := <-res:
+				return dst
+			case <-ctx.Done():
+				return HashRes{nil, ctx.Err()}
+		}
+	}
 }
 
 // GenerateConfig generates a new argon2.Config,
@@ -43,17 +72,19 @@ func run(memtest uint32, stdin []byte, timer bool){
 	var startT time.Time
 	for i := 3; i <= 70; i++ {
 		dummy := stdin
+		sinCtx, _ := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 		fmt.Printf("passes-%d mem-%d: ", i, memtest)
 		startT = time.Now()
-		if out, hashErr := ProduceHash(
+		if hashResult := SafeProduceHash(
+			sinCtx,
 			GenerateConfig(uint32(i), memtest, 12),
 			dummy,
 			timer,
 			startT,
-		); hashErr != nil {
-			if _, printErr := fmt.Fprint(os.Stderr, hashErr);
+		); hashResult.hashErr != nil {
+			if _, printErr := fmt.Fprint(os.Stderr, hashResult.hashErr);
 				printErr != nil { panic(printErr) }
-		} else { fmt.Println(string(out)) }
+		} else { fmt.Println(string(hashResult.hashed)) }
 	}
 }
 
@@ -61,10 +92,10 @@ func run(memtest uint32, stdin []byte, timer bool){
 // Variables: memory for thread pool (64mb/128mb/256mb/512mb),
 // iterations or passes (3 - 70).
 func benchmark(stdin []byte, timer bool) {
-	const memtest1 uint32 = 64
-	const memtest2 uint32 = 128
-	const memtest3 uint32 = 256
-	const memtest4 uint32 = 512
+	const memtest1 uint32 = 64*1024
+	const memtest2 uint32 = 128*1024
+	const memtest3 uint32 = 256*1024
+	const memtest4 uint32 = 512*1024
 
 	run(memtest1, stdin, timer)
 	run(memtest2, stdin, timer)
@@ -101,14 +132,14 @@ func main() {
 
 		conf := GenerateConfig(uint32(TIME_COST), uint32(MEM_COST), uint8(THREAD_AMOUNT))
 
-		out, hashErr := ProduceHash(conf, in, timer, time.Now())
-		if hashErr != nil {
-			if _, printErr := fmt.Fprint(os.Stderr, hashErr);
+		res := ProduceHash(conf, in, timer, time.Now())
+		if res.hashErr != nil {
+			if _, printErr := fmt.Fprint(os.Stderr, res.hashErr);
 				printErr != nil {
 				panic(printErr)
 			}
 		} else {
-			if _, printErr := fmt.Fprint(os.Stdout, string(out));
+			if _, printErr := fmt.Fprint(os.Stdout, string(res.hashed));
 				printErr != nil {
 				panic(printErr)
 			}
