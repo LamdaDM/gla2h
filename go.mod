@@ -1,4 +1,4 @@
-module pw_hasher
+module gla2h
 
 go 1.16
 
