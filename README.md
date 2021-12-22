@@ -1,8 +1,55 @@
-# gla2h
-Takes 6 arguments: 
-1) input -> string that will be hashed.
-2) timer -> flag to time how long the hash takes, leave as 'y' if you want the execution time outputted, else leave as 'x' or 'n'.
-3) benchmark -> 'y' to run through 268 testing iterations of different memory/passes combinations, else leave as 'x' or 'n'.
-4) memory cost -> memory to give to the threadpool in megabytes, e.g. '256' (256*1024 kb).
-5) passes -> how many passes or iterations to do, e.g. '10' (2^10 passes).
-6) parallelism -> how many threads to give argon2, usually double the cores the host's CPU has.
+# Description
+Gla2h is a program for benchmarking argon2 hashes to help the user determine what arguments to pass. 
+Uses [tvdburgt's Argon2 library](https://github.com/tvdburgt/go-argon2), which provides bindings for the
+reference C implementation of [Argon2](https://github.com/P-H-C/phc-winner-argon2).
+
+You may optionally configure gla2h through these environment variables:
+- threads = Number of threads to pass to hash function.
+- maxtime = Deadline given to create a hash (in milliseconds).
+- runs = Number of runs to do of each setting before taking the average runtime.
+
+*None of the above can be zero*!
+
+#### **Requires libargon2 and Go**
+```
+$ go build
+```
+
+### Example output:
+```
+Threads = 8; Maximum Time = 250; Number of runs = 1;
+MEMORY  PASSES  TIME    
+64mb    3       60ms
+64mb    4       62ms
+64mb    5       78ms
+64mb    6       90ms
+64mb    7       96ms
+64mb    8       109ms
+64mb    9       121ms
+64mb    10      131ms
+64mb    11      143ms
+64mb    12      152ms
+64mb    13      166ms
+64mb    14      180ms
+64mb    15      203ms
+64mb    16      206ms
+64mb    17      212ms
+64mb    18      221ms
+64mb    19      235ms
+128mb   3       93ms
+128mb   4       110ms
+128mb   5       135ms
+128mb   6       171ms
+128mb   7       180ms
+128mb   8       216ms
+128mb   9       225ms
+256mb   3       171ms
+256mb   4       218ms
+
+Longest runs:
+MEMORY  PASS    TIME
+64mb    19      235ms
+128mb   9       225ms
+256mb   4       218ms
+
+```
