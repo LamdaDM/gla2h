@@ -143,7 +143,7 @@ func main() {
 
 	var threads uint64
 	if threadStr, found := os.LookupEnv("threads"); found {
-		if threadParsed, err := strconv.ParseUint(threadStr, 10, 8); err != nil {
+		if threadParsed, err := strconv.ParseUint(threadStr, 10, 8); err != nil || threadParsed == 0 {
 			panic("Invalid assignment of threads!")
 		} else {
 			threads = threadParsed
@@ -154,7 +154,7 @@ func main() {
 
 	var maxTime uint64
 	if maxTimeStr, found := os.LookupEnv("maxtime"); found {
-		if maxTimeParsed, err := strconv.ParseUint(maxTimeStr, 10, 32); err != nil {
+		if maxTimeParsed, err := strconv.ParseUint(maxTimeStr, 10, 32); err != nil || maxTimeParsed == 0 {
 			panic("Invalid assignment of maximum run time!")
 		} else {
 			maxTime = maxTimeParsed
@@ -165,7 +165,7 @@ func main() {
 
 	var runs uint64
 	if runsStr, found := os.LookupEnv("runs"); found {
-		if runsParsed, err := strconv.ParseUint(runsStr, 10, 8); err != nil {
+		if runsParsed, err := strconv.ParseUint(runsStr, 10, 8); err != nil || runsParsed == 0 {
 			panic("Invalid assignment of benchmark runs!")
 		} else {
 			runs = runsParsed
