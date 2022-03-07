@@ -49,20 +49,20 @@ func getHashOrTimeout(ctx context.Context, conf *argon2.Context,
 	}
 }
 
-func generateConfig(passes uint32, memory uint32, threads uint8) argon2.Context {
+func generateConfig(passes uint32, memory uint32, threads uint8, mode int) argon2.Context {
 	return argon2.Context{
 		HashLen:     32,
 		Iterations:  int(passes),
 		Memory:      int(memory),
 		Parallelism: int(threads),
-		Mode:        argon2.ModeArgon2i,
+		Mode:        mode,
 		Version:     argon2.Version13,
 	}
 }
 
 // low-level benchmarking func,
 // uses the loop count for passes and the mem param for memory count.
-func run(mem uint32, in []byte, threads uint8, maxTime uint32, runs uint8) bmResult {
+func run(mem uint32, in []byte, threads uint8, maxTime uint32, runs uint8, mode int) bmResult {
 	var totalTime time.Duration
 	var timeCh = make(chan time.Duration)
 	var kill bool
@@ -73,7 +73,7 @@ func run(mem uint32, in []byte, threads uint8, maxTime uint32, runs uint8) bmRes
 		for j := 0; uint8(j) < runs; j++ {
 			func() {
 				dummy := in
-				conf := generateConfig(uint32(i), mem, threads)
+				conf := generateConfig(uint32(i), mem, threads, mode)
 
 				t := time.Duration(maxTime) * time.Millisecond
 				ctx, cancel := context.WithTimeout(context.Background(), t)
@@ -124,10 +124,10 @@ func memtest() [MemTestLen]uint32 {
 // - Memory for thread pool (64mb/128mb/256mb/512mb)
 //
 // - Iterations or passes (3 - 70).
-func benchmark(testData []byte, threads uint8, maxTime uint32, runs uint8) {
+func benchmark(testData []byte, threads uint8, maxTime uint32, runs uint8, mode int) {
 	topRuns := [MemTestLen]bmResult{}
 	for i, mem := range memtest() {
-		topRuns[i] = run(mem, testData, threads, maxTime, runs)
+		topRuns[i] = run(mem, testData, threads, maxTime, runs, mode)
 	}
 
 	fmt.Println("\nLongest runs:")
@@ -174,7 +174,26 @@ func main() {
 		runs = 1
 	}
 
-	fmt.Printf("Threads = %d; Maximum Time = %d; Number of runs = %d;\n", threads, maxTime, runs)
+	var mode int
+	modeStr, found := os.LookupEnv("mode")
+
+	if found {
+		if modeStr == "2d" {
+			mode = argon2.ModeArgon2d
+		} else if modeStr == "2id" {
+			mode = argon2.ModeArgon2id
+		} else {
+			mode = argon2.ModeArgon2i
+		}
+	} else {
+		mode = argon2.ModeArgon2i
+	}
+
+	fmt.Printf("Threads = %d; Maximum Time = %d; Number of runs = %d; Mode = %s;\n",
+		threads,
+		maxTime,
+		runs,
+		modeStr)
 	fmt.Println("MEMORY\tPASSES\tTIME\t")
-	benchmark([]byte("test!input"), uint8(threads), uint32(maxTime), uint8(runs))
+	benchmark([]byte("test!input"), uint8(threads), uint32(maxTime), uint8(runs), mode)
 }

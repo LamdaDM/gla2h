@@ -7,17 +7,18 @@ You may optionally configure gla2h through these environment variables:
 - threads = Number of threads to pass to hash function.
 - maxtime = Deadline given to create a hash (in milliseconds).
 - runs = Number of runs to do of each setting before taking the average runtime.
+- mode = Version of Argon2 to use (2i/2d/2id).
 
 *None of the above can be zero*!
 
 #### **Requires libargon2 and Go**
-```
+``` shell
 $ go build
 ```
 
 ### Example output:
 ```
-Threads = 8; Maximum Time = 250; Number of runs = 1;
+Threads = 8; Maximum Time = 250; Number of runs = 1; Mode = 2i;
 MEMORY  PASSES  TIME    
 64mb    3       60ms
 64mb    4       62ms
